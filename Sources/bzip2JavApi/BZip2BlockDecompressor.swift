@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011 Matthew Francis
+ * Copyright (c) 2025 Sebastian Ritter
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +21,6 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
-import java.io.IOException;
-
-
 /*
  * Block decoding consists of the following stages:
  * 1. Read block header - BZip2BlockDecompressor()
@@ -36,10 +32,13 @@ import java.io.IOException;
  * 7. Run-Length Decoding[1] - read()
  * 8. Optional Block De-Randomisation - read() (through decodeNextBWTByte())
  */
+
+import JavApi
+
 /**
  * Reads and decompresses a single BZip2 block
  */
-public class BZip2BlockDecompressor {
+open class BZip2BlockDecompressor {
 
 	/**
 	 * The BZip2 specification originally included the optional addition of a slight pseudo-random
@@ -50,7 +49,7 @@ public class BZip2BlockDecompressor {
 	 * each value N in this array, a 1 will be XOR'd onto the output of the Burrows-Wheeler
 	 * transform stage after N bytes, then the next N taken from the following entry.
 	 */
-	private static final int[] RNUMS = {
+	private static let RNUMS : [Int] = [
 			619, 720, 127, 481, 931, 816, 813, 233, 566, 247, 985, 724, 205, 454, 863, 491,
 			741, 242, 949, 214, 733, 859, 335, 708, 621, 574, 73, 654, 730, 472, 419, 436,
 			278, 496, 867, 210, 399, 680, 480, 51, 878, 465, 811, 169, 869, 675, 611, 697,
@@ -83,41 +82,41 @@ public class BZip2BlockDecompressor {
 			986, 403, 106, 366, 905, 644, 372, 567, 466, 434, 645, 210, 389, 550, 919, 135,
 			780, 773, 635, 389, 707, 100, 626, 958, 165, 504, 920, 176, 193, 713, 857, 265,
 			203, 50, 668, 108, 645, 990, 626, 197, 510, 357, 358, 850, 858, 364, 936, 638
-	};
+	]
 
 	/**
 	 * Provides bits of input to decode
 	 */
-	private final BZip2BitInputStream bitInputStream;
+	private let bitInputStream : BZip2BitInputStream
 
 	/**
 	 * Calculates the block CRC from the fully decoded bytes of the block
 	 */
-	private final CRC32 crc = new CRC32();
+	private let crc = BZip2CRC32()
 
 	/**
 	 * The CRC of the current block as read from the block header
 	 */
-	private final int blockCRC;
+	private let blockCRC : Int
 
 	/**
 	 * {@code true} if the current block is randomised, otherwise {@code false}
 	 */
-	private final boolean blockRandomised;
+	private let blockRandomised : Bool
 
 	/* Huffman Decoding stage */
 
 	/**
 	 * The end-of-block Huffman symbol. Decoding of the block ends when this is encountered
 	 */
-	private int huffmanEndOfBlockSymbol;
+	private var huffmanEndOfBlockSymbol : Int = 0
 
 	/**
 	 * A map from Huffman symbol index to output character. Some types of data (e.g. ASCII text)
 	 * may contain only a limited number of byte values; Huffman symbols are only allocated to
 	 * those values that actually occur in the uncompressed data.
 	 */
-	private final byte[] huffmanSymbolMap = new byte[256];
+	private var huffmanSymbolMap : [UInt8] = Array(repeating: 0, count: 256)
 
 	/* Move To Front stage */
 
@@ -125,13 +124,13 @@ public class BZip2BlockDecompressor {
 	 * Counts of each byte value within the {@link bwtTransformedArray} data. Collected at the Move
 	 * To Front stage, consumed by the Inverse Burrows Wheeler Transform stage
 	 */
-	private final int[] bwtByteCounts = new int[256];
+  private var bwtByteCounts : [Int] = Array(repeating: 0, count: 256)
 
 	/**
 	 * The Burrows-Wheeler Transform processed data. Read at the Move To Front stage, consumed by the
 	 * Inverse Burrows Wheeler Transform stage 
 	 */
-	private byte[] bwtBlock;
+	private var bwtBlock : [UInt8]?
 
 	/* Inverse Burrows-Wheeler Transform stage */
 
@@ -144,85 +143,88 @@ public class BZip2BlockDecompressor {
 	 * when both pieces of information are available, saves a large number of memory accesses in
 	 * the final decoding stages.
 	 */
-	private int[] bwtMergedPointers;
+	private var bwtMergedPointers : [Int]?
 
 	/**
 	 * The current merged pointer into the Burrow-Wheeler Transform array
 	 */
-	private int bwtCurrentMergedPointer;
+	private var bwtCurrentMergedPointer : Int = 0
 
 	/**
 	 * The actual length in bytes of the current block at the Inverse Burrows Wheeler Transform
 	 * stage (before final Run-Length Decoding)
 	 */
-	private int bwtBlockLength;
+	private var bwtBlockLength : Int = 0
 
 	/**
 	 * The number of output bytes that have been decoded up to the Inverse Burrows Wheeler Transform
 	 * stage
 	 */
-	private int bwtBytesDecoded;
+	private var bwtBytesDecoded : Int = 0
 
 	/* Run-Length Encoding and Random Perturbation stage */
 
 	/**
 	 * The most recently RLE decoded byte
 	 */
-	private int rleLastDecodedByte = -1;
+	private var rleLastDecodedByte = -1;
 
 	/**
 	 * The number of previous identical output bytes decoded. After 4 identical bytes, the next byte
 	 * decoded is an RLE repeat count
 	 */
-	private int rleAccumulator;
+	private var rleAccumulator : Int = 0
 
 	/**
 	 * The RLE repeat count of the current decoded byte. When this reaches zero, a new byte is
 	 * decoded
 	 */
-	private int rleRepeat;
+	private var rleRepeat : Int = 0
 
 	/**
 	 * If the current block is randomised, the position within the RNUMS randomisation array
 	 */
-	private int randomIndex = 0;
+	private var randomIndex = 0;
 
 	/**
 	 * If the current block is randomised, the remaining count at the current RNUMS position
 	 */
-	private int randomCount = RNUMS[0] - 1;
-
+	private var randomCount : Int = RNUMS[0] - 1;
 
 	/**
 	 * Read and decode the block's Huffman tables
 	 * @return A decoder for the Huffman stage that uses the decoded tables
 	 * @throws IOException if the input stream reaches EOF before all table data has been read
 	 */
-	private BZip2HuffmanStageDecoder readHuffmanTables() throws IOException {
-
-		final BZip2BitInputStream bitInputStream = this.bitInputStream;
-		final byte[] huffmanSymbolMap = this.huffmanSymbolMap;
-		final byte[][] tableCodeLengths = new byte[BZip2Constants.HUFFMAN_MAXIMUM_TABLES][BZip2Constants.HUFFMAN_MAXIMUM_ALPHABET_SIZE];
+	private func readHuffmanTables() throws -> BZip2HuffmanStageDecoder {
+    var tableCodeLengths : [[UInt8]] = Array(repeating: Array(repeating: 0, count: BZip2Constants.HUFFMAN_MAXIMUM_TABLES), count: BZip2Constants.HUFFMAN_MAXIMUM_ALPHABET_SIZE)
 
 		/* Read Huffman symbol to output byte map */
-		int huffmanUsedRanges = bitInputStream.readBits (16);
-		int huffmanSymbolCount = 0;
+    let huffmanUsedRanges = try bitInputStream.readBits (16);
+		var huffmanSymbolCount = 0;
 
-		for (int i = 0; i < 16; i++) {
+    for i in 0..<16 {
 			if ((huffmanUsedRanges & ((1 << 15) >>> i)) != 0) {
-				for (int j = 0, k = i << 4; j < 16; j++, k++) {
-					if (bitInputStream.readBoolean()) {
-						huffmanSymbolMap[huffmanSymbolCount++] = (byte)k;
+				//# for (int j = 0, k = i << 4; j < 16; j++, k++) {
+        var k = i << 4  // Initialize k with bit-shifted value
+        for _ in 0..<16 {
+          // Loop body here
+        
+          if (try bitInputStream.readBoolean()) {
+						huffmanSymbolMap[huffmanSymbolCount] = UInt8(k)
+            huffmanSymbolCount += 1
 					}
+          
+          k += 1  // Explicit increment (Swift doesn't have k++)
 				}
 			}
 		}
-		int endOfBlockSymbol = huffmanSymbolCount + 1;
-		this.huffmanEndOfBlockSymbol = endOfBlockSymbol;
+    let endOfBlockSymbol = huffmanSymbolCount + 1;
+		self.huffmanEndOfBlockSymbol = endOfBlockSymbol;
 
 		/* Read total number of tables and selectors*/
-		final int totalTables = bitInputStream.readBits (3);
-		final int totalSelectors = bitInputStream.readBits (15);
+    let totalTables = try bitInputStream.readBits (3);
+    let totalSelectors = try bitInputStream.readBits (15);
 		if (
 				   (totalTables < BZip2Constants.HUFFMAN_MINIMUM_TABLES)
 				|| (totalTables > BZip2Constants.HUFFMAN_MAXIMUM_TABLES)
@@ -230,31 +232,30 @@ public class BZip2BlockDecompressor {
 				|| (totalSelectors > BZip2Constants.HUFFMAN_MAXIMUM_SELECTORS)
 		   )
 		{
-			throw new BZip2Exception ("BZip2 block Huffman tables invalid");
+      throw BZip2Exception.IOException("BZip2 block Huffman tables invalid");
 		}
 
 		/* Read and decode MTFed Huffman selector list */
-		final MoveToFront tableMTF = new MoveToFront();
-		final byte[] selectors = new byte[totalSelectors];
-		for (int selector = 0; selector < totalSelectors; selector++) {
-			selectors[selector] = tableMTF.indexToFront (bitInputStream.readUnary());
+		let tableMTF = MoveToFront();
+    var selectors : [UInt8] = Array(repeating: 0, count: totalSelectors)
+    for selector in 0..<totalSelectors {
+      selectors[selector] = tableMTF.indexToFront (try bitInputStream.readUnary());
 		}
 
 		/* Read the Canonical Huffman code lengths for each table */
-		for (int table = 0; table < totalTables; table++) {
-			int currentLength = bitInputStream.readBits (5);
-			for (int i = 0; i <= endOfBlockSymbol; i++) {
-				while (bitInputStream.readBoolean()) {
-					currentLength += bitInputStream.readBoolean() ? -1 : 1;
+    for table in 0..<totalTables {
+      var currentLength = try bitInputStream.readBits (5);
+      for i in 0...endOfBlockSymbol {
+        while (try bitInputStream.readBoolean()) {
+          currentLength += try bitInputStream.readBoolean() ? -1 : 1;
 				}
-				tableCodeLengths[table][i] = (byte)currentLength;
+				tableCodeLengths[table][i] = UInt8(currentLength)
 			}
 		}
 
-		return new BZip2HuffmanStageDecoder (bitInputStream, endOfBlockSymbol + 1, tableCodeLengths, selectors);
+		return BZip2HuffmanStageDecoder (bitInputStream, endOfBlockSymbol + 1, tableCodeLengths, selectors)
 
 	}
-
 
 	/**
 	 * Reads the Huffman encoded data from the input stream, performs Run-Length Decoding and
@@ -262,21 +263,18 @@ public class BZip2BlockDecompressor {
 	 * @param huffmanDecoder The Huffman decoder through which symbols are read
 	 * @throws IOException if an end-of-block symbol was not decoded within the declared block size
 	 */
-	private void decodeHuffmanData (final BZip2HuffmanStageDecoder huffmanDecoder) throws IOException {
+	private func decodeHuffmanData (_ huffmanDecoder : BZip2HuffmanStageDecoder) throws {
 
-		final byte[] bwtBlock = this.bwtBlock;
-		final byte[] huffmanSymbolMap = this.huffmanSymbolMap;
-		final int streamBlockSize = this.bwtBlock.length;
-		final int huffmanEndOfBlockSymbol = this.huffmanEndOfBlockSymbol;
-		final int[] bwtByteCounts = this.bwtByteCounts;
-		final MoveToFront symbolMTF = new MoveToFront();
-		int bwtBlockLength = 0;
-		int repeatCount = 0;
-		int repeatIncrement = 1;
-		int mtfValue = 0;
+    let streamBlockSize = self.bwtBlock!.count
+		let huffmanEndOfBlockSymbol = self.huffmanEndOfBlockSymbol;
+		let symbolMTF = MoveToFront();
+		var bwtBlockLength = 0;
+		var repeatCount = 0;
+		var repeatIncrement = 1;
+		var mtfValue = 0;
 
-		for (;;) {
-			final int nextSymbol = huffmanDecoder.nextSymbol();
+		while (true) {
+      let nextSymbol = try huffmanDecoder.nextSymbol();
 
 			if (nextSymbol == BZip2Constants.HUFFMAN_SYMBOL_RUNA) {
 				repeatCount += repeatIncrement;
@@ -287,57 +285,57 @@ public class BZip2BlockDecompressor {
 			} else {
 				if (repeatCount > 0) {
 					if (bwtBlockLength + repeatCount > streamBlockSize) {
-						throw new BZip2Exception ("BZip2 block exceeds declared block size");
+            throw BZip2Exception.IOException("BZip2 block exceeds declared block size");
 					}
-					final byte nextByte = huffmanSymbolMap[mtfValue];
-					bwtByteCounts[nextByte & 0xff] += repeatCount;
-					while (--repeatCount >= 0) {
-						bwtBlock[bwtBlockLength++] = nextByte;
+					let nextByte = huffmanSymbolMap[mtfValue];
+          bwtByteCounts[Int(nextByte) & 0xff] += repeatCount;
+          repeatCount -= 1
+					while (repeatCount >= 0) {
+            bwtBlock![bwtBlockLength] = nextByte;
+            bwtBlockLength += 1
 					}
 
 					repeatCount = 0;
 					repeatIncrement = 1;
 				}
 
-				if (nextSymbol == huffmanEndOfBlockSymbol)
-					break;
+				if (nextSymbol == huffmanEndOfBlockSymbol) {
+					break
+        }
 
 				if (bwtBlockLength >= streamBlockSize) {
-					throw new BZip2Exception ("BZip2 block exceeds declared block size");
+          throw BZip2Exception.IOException("BZip2 block exceeds declared block size");
 				}
 
-				mtfValue = symbolMTF.indexToFront (nextSymbol - 1) & 0xff;
+        mtfValue = Int(symbolMTF.indexToFront (nextSymbol - 1) & 0xff);
 
-				final byte nextByte = huffmanSymbolMap[mtfValue];
-				bwtByteCounts[nextByte & 0xff]++;
-				bwtBlock[bwtBlockLength++] = nextByte;
+				let nextByte = huffmanSymbolMap[mtfValue];
+        bwtByteCounts[Int(nextByte) & 0xff] += 1;
+        bwtBlock![bwtBlockLength] = nextByte;
+        bwtBlockLength += 1
 
 			}
 		}
 
-		this.bwtBlockLength = bwtBlockLength;
-
+		self.bwtBlockLength = bwtBlockLength;
 	}
-
 
 	/**
 	 * Set up the Inverse Burrows-Wheeler Transform merged pointer array
 	 * @param bwtStartPointer The start pointer into the BWT array
 	 * @throws IOException if the given start pointer is invalid
 	 */
-	private void initialiseInverseBWT (final int bwtStartPointer) throws IOException {
+	private func initialiseInverseBWT (_ bwtStartPointer : Int) throws {
+    var bwtMergedPointers : [Int] = Array(repeating: 0, count: self.bwtBlockLength)
+    var characterBase : [Int] = Array(repeating: 0, count: 256)
 
-		final byte[] bwtBlock  = this.bwtBlock;
-		final int[] bwtMergedPointers = new int[this.bwtBlockLength];
-		final int[] characterBase = new int[256];
-
-		if ((bwtStartPointer < 0) || (bwtStartPointer >= this.bwtBlockLength)) {
-			throw new BZip2Exception ("BZip2 start pointer invalid");
+		if ((bwtStartPointer < 0) || (bwtStartPointer >= self.bwtBlockLength)) {
+      throw BZip2Exception.BZip2Exception ("BZip2 start pointer invalid");
 		}
 
 		// Cumulatise character counts
-		System.arraycopy (this.bwtByteCounts, 0, characterBase, 1, 255);
-		for (int i = 2; i <= 255; i++) {
+    System.arraycopy (self.bwtByteCounts, 0, &characterBase, 1, 255);
+    for i in 2...255 {
 			characterBase[i] += characterBase[i - 1];
 		}
 
@@ -345,86 +343,81 @@ public class BZip2BlockDecompressor {
 		// Combining the output characters and forward pointers into a single array here, where we
 		// have already read both of the corresponding values, cuts down on memory accesses in the
 		// final walk through the array
-		for (int i = 0; i < this.bwtBlockLength; i++) {
-			int value = bwtBlock[i] & 0xff;
-			bwtMergedPointers[characterBase[value]++] = (i << 8) + value;
+    for i in 0..<self.bwtBlockLength {
+      let value : Int = Int(bwtBlock![i] & 0xff);
+			bwtMergedPointers[characterBase[value]] = (i << 8) + value;
+      characterBase[value] += 1
 		}
 
-		this.bwtBlock = null;
-		this.bwtMergedPointers = bwtMergedPointers;
-		this.bwtCurrentMergedPointer = bwtMergedPointers[bwtStartPointer];
-
+		self.bwtBlock = nil;
+		self.bwtMergedPointers = bwtMergedPointers;
+		self.bwtCurrentMergedPointer = bwtMergedPointers[bwtStartPointer];
 	}
-
 
 	/**
 	 * Decodes a byte from the Burrows-Wheeler Transform stage. If the block has randomisation
 	 * applied, reverses the randomisation
 	 * @return The decoded byte
 	 */
-	private int decodeNextBWTByte() {
+	private func decodeNextBWTByte() -> Int {
+    let mergedPointer : Int = self.bwtCurrentMergedPointer;
+    var nextDecodedByte : Int = mergedPointer & 0xff;
+    self.bwtCurrentMergedPointer = self.bwtMergedPointers![mergedPointer >>> 8]
 
-		int mergedPointer = this.bwtCurrentMergedPointer;
-		int nextDecodedByte =  mergedPointer & 0xff;
-		this.bwtCurrentMergedPointer = this.bwtMergedPointers[mergedPointer >>> 8];
-
-		if (this.blockRandomised) {
-			if (--this.randomCount == 0) {
+		if (self.blockRandomised) {
+      self.randomCount -= 1
+			if (self.randomCount == 0) {
 				nextDecodedByte ^= 1;
-				this.randomIndex = (this.randomIndex + 1) % 512;
-				this.randomCount = RNUMS[this.randomIndex];
+				self.randomIndex = (self.randomIndex + 1) % 512;
+        self.randomCount = BZip2BlockDecompressor.RNUMS[self.randomIndex];
 			}
 		}
 
-		this.bwtBytesDecoded++;
+		self.bwtBytesDecoded += 1
 
 		return nextDecodedByte;
-
 	}
-
 
 	/**
 	 * Decodes a byte from the final Run-Length Encoding stage, pulling a new byte from the
 	 * Burrows-Wheeler Transform stage when required
 	 * @return The decoded byte, or -1 if there are no more bytes
 	 */
-	public int read() {
+	public func read() -> Int {
+		while (self.rleRepeat < 1) {
 
-		while (this.rleRepeat < 1) {
-
-			if (this.bwtBytesDecoded == this.bwtBlockLength) {
+			if (self.bwtBytesDecoded == self.bwtBlockLength) {
 				return -1;
 			}
 
-			int nextByte = decodeNextBWTByte();
+      let nextByte : Int = decodeNextBWTByte();
 
-			if (nextByte != this.rleLastDecodedByte) {
+			if (nextByte != self.rleLastDecodedByte) {
 				// New byte, restart accumulation
-				this.rleLastDecodedByte = nextByte;
-				this.rleRepeat = 1;
-				this.rleAccumulator = 1;
-				this.crc.updateCRC (nextByte);
-			} else {
-				if (++this.rleAccumulator == 4) {
+				self.rleLastDecodedByte = nextByte;
+				self.rleRepeat = 1;
+				self.rleAccumulator = 1;
+				self.crc.updateCRC (nextByte);
+			}
+      else {
+        self.rleAccumulator += 1
+				if (self.rleAccumulator == 4) {
 					// Accumulation complete, start repetition
-					int rleRepeat = decodeNextBWTByte() + 1;
-					this.rleRepeat = rleRepeat;
-					this.rleAccumulator = 0;
-					this.crc.updateCRC (nextByte, rleRepeat);
-				} else {
-					this.rleRepeat = 1;
-					this.crc.updateCRC (nextByte);
+          let rleRepeat = decodeNextBWTByte() + 1;
+					self.rleRepeat = rleRepeat;
+					self.rleAccumulator = 0;
+					self.crc.updateCRC (nextByte, rleRepeat);
+				}
+        else {
+					self.rleRepeat = 1;
+					self.crc.updateCRC (nextByte);
 				}
 			}
-
 		}
+		self.rleRepeat -= 1
 
-		this.rleRepeat--;
-
-		return this.rleLastDecodedByte;
-
+		return self.rleLastDecodedByte;
 	}
-
 
 	/**
 	 * Decodes multiple bytes from the final Run-Length Encoding stage, pulling new bytes from the
@@ -434,20 +427,23 @@ public class BZip2BlockDecompressor {
 	 * @param length The number of bytes to read
 	 * @return The number of bytes actually read, or -1 if there are no bytes left in the block
 	 */
-	public int read (final byte[] destination, int offset, final int length) {
-
-		int i;
-		for (i = 0; i < length; i++, offset++) {
-			int decoded = read();
+	public func read (_ destination : inout [UInt8], _ offset : Int, _ length : Int) -> Int {
+    var i : Int = 0
+		//# for (i = 0; i < length; i++, offset++) {
+    var offset = offset
+    while i < length {
+      // Loop body
+      let decoded = read();
 			if (decoded == -1) {
 				return (i == 0) ? -1 : i;
 			}
-			destination[offset] = (byte)decoded;
+			destination[offset] = UInt8(decoded)
+      
+      i += 1       // Replaces i++
+      offset += 1   // Replaces offset++
 		}
 		return i;
-
 	}
-
 
 	/**
 	 * Verify and return the block CRC. This method may only be called after all of the block's
@@ -455,40 +451,35 @@ public class BZip2BlockDecompressor {
 	 * @return The block CRC
 	 * @throws IOException if the CRC verification failed
 	 */
-	public int checkCRC() throws IOException {
-
-		if (this.blockCRC != this.crc.getCRC()) {
-			throw new BZip2Exception ("BZip2 block CRC error");
+	public func checkCRC() throws -> Int {
+		if (self.blockCRC != self.crc.getCRC()) {
+      throw BZip2Exception.IOException("BZip2 block CRC error");
 		}
 
-		return this.crc.getCRC();
-
+		return self.crc.getCRC();
 	}
-
 
 	/**
 	 * @param bitInputStream The BZip2BitInputStream to read from
 	 * @param blockSize The maximum decoded size of the block
 	 * @throws IOException If the block could not be decoded
 	 */
-	public BZip2BlockDecompressor (final BZip2BitInputStream bitInputStream, final int blockSize) throws IOException {
+	public init (_ bitInputStream : BZip2BitInputStream, _ blockSize : Int) throws {
 
-		this.bitInputStream = bitInputStream;
-		this.bwtBlock = new byte[blockSize];
+		self.bitInputStream = bitInputStream;
+		self.bwtBlock = Array(repeating: 0, count: blockSize)
 
-		final int bwtStartPointer;
+    var bwtStartPointer : Int
 
 		// Read block header
-		this.blockCRC = this.bitInputStream.readInteger();
-		this.blockRandomised = this.bitInputStream.readBoolean();
-		bwtStartPointer = this.bitInputStream.readBits (24);
+    self.blockCRC = try self.bitInputStream.readInteger();
+    self.blockRandomised = try self.bitInputStream.readBoolean();
+    bwtStartPointer = try self.bitInputStream.readBits (24);
 
 		// Read block data and decode through to the Inverse Burrows Wheeler Transform stage
-		BZip2HuffmanStageDecoder huffmanDecoder = readHuffmanTables();
-		decodeHuffmanData (huffmanDecoder);
-		initialiseInverseBWT (bwtStartPointer);
-
+    let huffmanDecoder : BZip2HuffmanStageDecoder = try readHuffmanTables();
+    try decodeHuffmanData (huffmanDecoder);
+    try initialiseInverseBWT (bwtStartPointer);
+    
 	}
-
-
 }

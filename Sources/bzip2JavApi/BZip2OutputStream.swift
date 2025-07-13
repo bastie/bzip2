@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2011 Matthew Francis
- * 
+ * Copyright (c) 2025 Sebastian Ritter
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -20,68 +21,59 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
-import java.io.IOException;
-import java.io.OutputStream;
-
+import JavApi
 
 /**
  * <p>An OutputStream wrapper that compresses BZip2 data</p>
  *
  * <p>Instances of this class are not threadsafe.</p>
  */
-public class BZip2OutputStream extends OutputStream {
+open class BZip2OutputStream : java.io.OutputStream {
 
 	/**
 	 * The stream to which compressed BZip2 data is written
 	 */
-	private OutputStream outputStream;
+  private var outputStream : java.io.OutputStream
 
 	/**
 	 * An OutputStream wrapper that provides bit-level writes
 	 */
-	private BZip2BitOutputStream bitOutputStream;
+  private var bitOutputStream : BZip2BitOutputStream
 
 	/**
 	 * (@code true} if the compressed stream has been finished, otherwise {@code false}
 	 */
-	private boolean streamFinished = false;
+	private var streamFinished = false;
 
 	/**
 	 * The declared maximum block size of the stream (before final run-length decoding)
 	 */
-	private final int streamBlockSize;
+  private var streamBlockSize : Int
 
 	/**
 	 * The merged CRC of all blocks compressed so far
 	 */
-	private int streamCRC = 0;
+	private var streamCRC = 0;
 
 	/**
 	 * The compressor for the current block
 	 */
-	private BZip2BlockCompressor blockCompressor;
+  private var blockCompressor : BZip2BlockCompressor
 
 
 	/* (non-Javadoc)
 	 * @see java.io.OutputStream#write(int)
 	 */
-	@Override
-	public void write (final int value) throws IOException {
+  public override func write (_ value : Int) throws {
 
-		if (this.outputStream == null) {
-			throw new BZip2Exception ("Stream closed");
+		if (self.streamFinished) {
+      throw BZip2Exception.IOException("Write beyond end of stream");
 		}
 
-		if (this.streamFinished) {
-			throw new BZip2Exception ("Write beyond end of stream");
-		}
-
-		if (!this.blockCompressor.write (value & 0xff)) {
-			closeBlock();
+		if (!self.blockCompressor.write (value & 0xff)) {
+      try closeBlock();
 			initialiseNextBlock();
-			this.blockCompressor.write (value & 0xff);
+			_ = self.blockCompressor.write (value & 0xff);
 		}
 
 	}
@@ -90,21 +82,19 @@ public class BZip2OutputStream extends OutputStream {
 	/* (non-Javadoc)
 	 * @see java.io.OutputStream#write(byte[], int, int)
 	 */
-	@Override
-	public void write (final byte[] data, int offset, int length) throws IOException {
+  public override func write (_ data : [UInt8], _ _offset : Int, _ _length : Int) throws {
+    var offset = _offset
+    var length = _length
 
-		if (this.outputStream == null) {
-			throw new BZip2Exception ("Stream closed");
+		if (self.streamFinished) {
+      throw BZip2Exception.IOException("Write beyond end of stream");
 		}
 
-		if (this.streamFinished) {
-			throw new BZip2Exception ("Write beyond end of stream");
-		}
-
-		int bytesWritten;
+    var bytesWritten : Int
 		while (length > 0) {
-			if ((bytesWritten = this.blockCompressor.write (data, offset, length)) < length) {
-				closeBlock();
+      bytesWritten = self.blockCompressor.write(data, offset, length)
+      if bytesWritten < length {
+        try closeBlock();
 				initialiseNextBlock();
 			}
 			offset += bytesWritten;
@@ -117,24 +107,18 @@ public class BZip2OutputStream extends OutputStream {
 	/* (non-Javadoc)
 	 * @see java.io.OutputStream#close()
 	 */
-	@Override
-	public void close() throws IOException {
-
-		if (this.outputStream != null) {
-			finish();
-			this.outputStream.close();
-			this.outputStream = null;
-		}
-
+  public override func close() throws {
+    try finish();
+    try self.outputStream.close();
 	}
 
 
 	/**
 	 * Initialises a new block for compression
 	 */
-	private void initialiseNextBlock() {
+	private func initialiseNextBlock() {
 
-		this.blockCompressor = new BZip2BlockCompressor (this.bitOutputStream, this.streamBlockSize);
+		self.blockCompressor = BZip2BlockCompressor (self.bitOutputStream, self.streamBlockSize);
 
 	}
 
@@ -144,15 +128,15 @@ public class BZip2OutputStream extends OutputStream {
 	 * block, it is discarded
 	 * @throws IOException on any I/O error writing to the output stream
 	 */
-	private void closeBlock() throws IOException {
+	private func closeBlock() throws {
 
-		if (this.blockCompressor.isEmpty()) {
+		if (self.blockCompressor.isEmpty()) {
 			return;
 		}
 
-		this.blockCompressor.close();
-		int blockCRC = this.blockCompressor.getCRC();
-		this.streamCRC = ((this.streamCRC << 1) | (this.streamCRC >>> 31)) ^ blockCRC;
+    try self.blockCompressor.close();
+    let blockCRC : Int = self.blockCompressor.getCRC();
+		self.streamCRC = ((self.streamCRC << 1) | (self.streamCRC >>> 31)) ^ blockCRC;
 
 	}
 
@@ -162,20 +146,16 @@ public class BZip2OutputStream extends OutputStream {
 	 * The underlying OutputStream is not closed
 	 * @throws IOException on any I/O error writing to the output stream
 	 */
-	public void finish() throws IOException {
+	public func finish() throws {
 
-		if (!this.streamFinished) {
-			this.streamFinished = true;
-			try {
-				closeBlock();
-				this.bitOutputStream.writeBits (24, BZip2Constants.STREAM_END_MARKER_1);
-				this.bitOutputStream.writeBits (24, BZip2Constants.STREAM_END_MARKER_2);
-				this.bitOutputStream.writeInteger (this.streamCRC);
-				this.bitOutputStream.flush();
-				this.outputStream.flush();
-			} finally {
-				this.blockCompressor = null;
-			}
+		if (!self.streamFinished) {
+			self.streamFinished = true;
+      try closeBlock();
+      try self.bitOutputStream.writeBits (24, BZip2Constants.STREAM_END_MARKER_1);
+      try self.bitOutputStream.writeBits (24, BZip2Constants.STREAM_END_MARKER_2);
+      try self.bitOutputStream.writeInteger (self.streamCRC);
+      try self.bitOutputStream.flush();
+      try self.outputStream.flush();
 		}
 
 	}
@@ -188,25 +168,23 @@ public class BZip2OutputStream extends OutputStream {
 	 * but give better compression ratios. <code>9</code> will usually be the best value to use
 	 * @throws IOException on any I/O error writing to the output stream
 	 */
-	public BZip2OutputStream (final OutputStream outputStream, final int blockSizeMultiplier) throws IOException {
-
-		if (outputStream == null) {
-			throw new IllegalArgumentException ("Null output stream");
-		}
+  public init (_ outputStream : java.io.OutputStream, _ blockSizeMultiplier : Int) throws  {
 
 		if ((blockSizeMultiplier < 1) || (blockSizeMultiplier > 9)) {
-			throw new IllegalArgumentException ("Invalid BZip2 block size" + blockSizeMultiplier);
+      throw java.lang.Throwable.IllegalArgumentException ("Invalid BZip2 block size \(blockSizeMultiplier)")
 		}
 
-		this.streamBlockSize = blockSizeMultiplier * 100000;
-		this.outputStream = outputStream;
-		this.bitOutputStream = new BZip2BitOutputStream (this.outputStream);
+		self.streamBlockSize = blockSizeMultiplier * 100000;
+		self.outputStream = outputStream;
+		self.bitOutputStream = BZip2BitOutputStream (self.outputStream);
 
-		this.bitOutputStream.writeBits (16, BZip2Constants.STREAM_START_MARKER_1);
-		this.bitOutputStream.writeBits (8,  BZip2Constants.STREAM_START_MARKER_2);
-		this.bitOutputStream.writeBits (8, '0' + blockSizeMultiplier);
+    try self.bitOutputStream.writeBits (16, BZip2Constants.STREAM_START_MARKER_1);
+    try self.bitOutputStream.writeBits (8,  BZip2Constants.STREAM_START_MARKER_2);
+    let charValue = UInt8(ascii: "0") + UInt8(blockSizeMultiplier)
+    try self.bitOutputStream.writeBits (8, Int(charValue));
 
-		initialiseNextBlock();
+		//initialiseNextBlock();
+    self.blockCompressor = BZip2BlockCompressor (self.bitOutputStream, self.streamBlockSize);
 
 	}
 
@@ -216,10 +194,8 @@ public class BZip2OutputStream extends OutputStream {
 	 * @param outputStream The output stream to write to
 	 * @throws IOException on any I/O error writing to the output stream
 	 */
-	public BZip2OutputStream (final OutputStream outputStream) throws IOException {
-
-		this (outputStream, 9);
-
+  public convenience init (_ outputStream : java.io.OutputStream) throws {
+    try self.init (outputStream, 9);
 	}
 
 }

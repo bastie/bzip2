@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011 Matthew Francis
+ * Copyright (c) 2025 Sebastian Ritter
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,42 +21,41 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
+import JavApi
 
 /**
  * A 256 entry Move To Front transform
  */
-public class MoveToFront {
+open class MoveToFront {
 
 	/**
 	 * The Move To Front list
 	 */
-	private final byte[] mtf = {
+  private var mtf : [UInt8] = [
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
 			24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
 			46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
 			68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
 			90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108,
 			109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
-			126, 127, (byte)128, (byte)129, (byte)130, (byte)131, (byte)132, (byte)133, (byte)134,
-			(byte)135, (byte)136, (byte)137, (byte)138, (byte)139, (byte)140, (byte)141, (byte)142,
-			(byte)143, (byte)144, (byte)145, (byte)146, (byte)147, (byte)148, (byte)149, (byte)150,
-			(byte)151, (byte)152, (byte)153, (byte)154, (byte)155, (byte)156, (byte)157, (byte)158,
-			(byte)159, (byte)160, (byte)161, (byte)162, (byte)163, (byte)164, (byte)165, (byte)166,
-			(byte)167, (byte)168, (byte)169, (byte)170, (byte)171, (byte)172, (byte)173, (byte)174,
-			(byte)175, (byte)176, (byte)177, (byte)178, (byte)179, (byte)180, (byte)181, (byte)182,
-			(byte)183, (byte)184, (byte)185, (byte)186, (byte)187, (byte)188, (byte)189, (byte)190,
-			(byte)191, (byte)192, (byte)193, (byte)194, (byte)195, (byte)196, (byte)197, (byte)198,
-			(byte)199, (byte)200, (byte)201, (byte)202, (byte)203, (byte)204, (byte)205, (byte)206,
-			(byte)207, (byte)208, (byte)209, (byte)210, (byte)211, (byte)212, (byte)213, (byte)214,
-			(byte)215, (byte)216, (byte)217, (byte)218, (byte)219, (byte)220, (byte)221, (byte)222,
-			(byte)223, (byte)224, (byte)225, (byte)226, (byte)227, (byte)228, (byte)229, (byte)230,
-			(byte)231, (byte)232, (byte)233, (byte)234, (byte)235, (byte)236, (byte)237, (byte)238,
-			(byte)239, (byte)240, (byte)241, (byte)242, (byte)243, (byte)244, (byte)245, (byte)246,
-			(byte)247, (byte)248, (byte)249, (byte)250, (byte)251, (byte)252, (byte)253, (byte)254,
-			(byte)255
-	};
+			126, 127, 128, 129, 130, 131, 132, 133, 134,
+			135, 136, 137, 138, 139, 140, 141, 142,
+			143, 144, 145, 146, 147, 148, 149, 150,
+			151, 152, 153, 154, 155, 156, 157, 158,
+			159, 160, 161, 162, 163, 164, 165, 166,
+			167, 168, 169, 170, 171, 172, 173, 174,
+			175, 176, 177, 178, 179, 180, 181, 182,
+			183, 184, 185, 186, 187, 188, 189, 190,
+			191, 192, 193, 194, 195, 196, 197, 198,
+			199, 200, 201, 202, 203, 204, 205, 206,
+			207, 208, 209, 210, 211, 212, 213, 214,
+			215, 216, 217, 218, 219, 220, 221, 222,
+			223, 224, 225, 226, 227, 228, 229, 230,
+			231, 232, 233, 234, 235, 236, 237, 238,
+			239, 240, 241, 242, 243, 244, 245, 246,
+			247, 248, 249, 250, 251, 252, 253, 254,
+			255
+	]
 
 
 	/**
@@ -63,17 +63,15 @@ public class MoveToFront {
 	 * @param value The value to move
 	 * @return The position the value moved from
 	 */
-	public int valueToFront (final byte value) {
+  public func valueToFront (_ value : UInt8) -> Int{
 
-		final byte[] mtf = this.mtf;
-
-		int index = 0;
-		byte temp = mtf[0];
+		var index = 0;
+		var temp = mtf[0];
 		if (value != temp) {
 			mtf[0] = value;
 			while (value != temp) {
-				index++;
-				final byte temp2 = temp;
+				index += 1
+				let temp2 = temp;
 				temp = mtf[index];
 				mtf[index] = temp2;
 			}
@@ -90,12 +88,10 @@ public class MoveToFront {
 	 * @param index The index to move
 	 * @return The value at the given index
 	 */
-	public byte indexToFront (final int index) {
+  public func indexToFront (_ index : Int) -> UInt8{
 
-		final byte[] mtf = this.mtf;
-
-		final byte value = mtf[index];
-		System.arraycopy (mtf, 0, mtf, 1, index);
+		let value = mtf[index];
+    java.lang.System.arraycopy (mtf, 0, &mtf, 1, index);
 		mtf[0] = value;
 
 		return value;

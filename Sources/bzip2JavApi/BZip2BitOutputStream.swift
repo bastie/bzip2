@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011 Matthew Francis
+ * Copyright (c) 2025 Sebastian Ritter
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,71 +21,61 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
-import java.io.IOException;
-import java.io.OutputStream;
-
+import JavApi
 
 /**
  * <p>An OutputStream wrapper that allows the writing of single bit booleans, unary numbers, bit
  * strings of arbitrary length (up to 24 bits), and bit aligned 32-bit integers. A single byte at a
  * time is written to the wrapped stream when sufficient bits have been accumulated
  */
-public class BZip2BitOutputStream {
+open class BZip2BitOutputStream {
 
 	/**
 	 * The stream to which bits are written
 	 */
-	private final OutputStream outputStream;
+  private let outputStream : java.io.OutputStream
 
 	/**
 	 * A buffer of bits waiting to be written to the output stream
 	 */
-	private int bitBuffer;
+  private var bitBuffer : Int = 0
 
 	/**
 	 * The number of bits currently buffered in {@link #bitBuffer}
 	 */
-	private int bitCount;
-
+  private var bitCount : Int = 0
 
 	/**
 	 * Writes a single bit to the wrapped output stream
 	 * @param value The bit to write
 	 * @throws IOException if an error occurs writing to the stream
 	 */
-	public void writeBoolean (final boolean value) throws IOException {
-
-		int bitCount = this.bitCount + 1;
-		int bitBuffer = this.bitBuffer | ((value ? 1 : 0) << (32 - bitCount));
+  public func writeBoolean (_ value : Bool) throws {
+		var bitCount = self.bitCount + 1;
+		var bitBuffer = self.bitBuffer | ((value ? 1 : 0) << (32 - bitCount));
 
 		if (bitCount == 8) {
-			this.outputStream.write (bitBuffer >>> 24);
+			try self.outputStream.write (bitBuffer >>> 24);
 			bitBuffer = 0;
 			bitCount = 0;
 		}
 
-		this.bitBuffer = bitBuffer;
-		this.bitCount = bitCount;
-
+		self.bitBuffer = bitBuffer;
+		self.bitCount = bitCount;
 	}
-
 
 	/**
 	 * Writes a zero-terminated unary number to the wrapped output stream
 	 * @param value The number to write (must be non-negative)
 	 * @throws IOException if an error occurs writing to the stream
 	 */
-	public void writeUnary (int value) throws IOException {
-
-		while (value-- > 0) {
-			writeBoolean (true); 
+  public func writeUnary (_ _value : Int) throws {
+    var value = _value
+    while value > 0 { value -= 1 //while (value-- > 0) {
+			try writeBoolean (true);
 		}
-		writeBoolean (false);
-
+		try writeBoolean (false);
 	}
-
 
 	/**
 	 * Writes up to 24 bits to the wrapped output stream
@@ -92,57 +83,46 @@ public class BZip2BitOutputStream {
 	 * @param value The bits to write
 	 * @throws IOException if an error occurs writing to the stream
 	 */
-	public void writeBits (final int count, final int value) throws IOException {
-
-		int bitCount = this.bitCount;
-		int bitBuffer = this.bitBuffer | ((value << (32 - count)) >>> bitCount);
+  public func writeBits (_ count : Int, _ value : Int) throws {
+		var bitCount = self.bitCount;
+		var bitBuffer = self.bitBuffer | ((value << (32 - count)) >>> bitCount);
 		bitCount += count;
 
 		while (bitCount >= 8) {
-			this.outputStream.write (bitBuffer >>> 24);
+      let byte : Int = bitBuffer >>> 24
+			try self.outputStream.write (byte);
 			bitBuffer <<= 8;
 			bitCount -= 8;
 		}
 
-		this.bitBuffer = bitBuffer;
-		this.bitCount = bitCount;
-
+		self.bitBuffer = bitBuffer;
+		self.bitCount = bitCount;
 	}
-
 
 	/**
 	 * Writes an integer as 32 bits of output
 	 * @param value The integer to write
 	 * @throws IOException if an error occurs writing to the stream
 	 */
-	public void writeInteger (final int value) throws IOException {
-
-		writeBits (16, (value >>> 16) & 0xffff);
-		writeBits (16, value & 0xffff);
-
+  public func writeInteger (_ value : Int) throws {
+		try writeBits (16, (value >>> 16) & 0xffff);
+		try writeBits (16, value & 0xffff);
 	}
-
 
 	/**
 	 * Writes any remaining bits to the output stream, zero padding to a whole byte as required
 	 * @throws IOException if an error occurs writing to the stream
 	 */
-	public void flush() throws IOException {
-
-		if (this.bitCount > 0) {
-			writeBits (8 - this.bitCount, 0);
+	public func flush() throws {
+		if (self.bitCount > 0) {
+			try writeBits (8 - self.bitCount, 0);
 		}
-
 	}
-
 
 	/**
 	 * @param outputStream The OutputStream to wrap
 	 */
-	public BZip2BitOutputStream (final OutputStream outputStream) {
-
-		this.outputStream = outputStream;
-
+  public init (_ outputStream : java.io.OutputStream) {
+		self.outputStream = outputStream;
 	}
-
 }
