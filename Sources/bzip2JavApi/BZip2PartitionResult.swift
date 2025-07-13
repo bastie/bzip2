@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2003-2008 Yuta Mori All Rights Reserved.
+ * Copyright (c) 2011 Matthew Francis
  * Copyright (c) 2025 Sebastian Ritter
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,23 +22,28 @@
  * THE SOFTWARE.
  */
 
-import JavApi
+// extract inner class from BZIP2DivSufSort
 
-public enum BZip2Exception : Error {
-  /// - Since: JavaApi &gt; 0.16.0 (Java 1.0)
-  case IOException (_ message : String = "IOException")
-  case BZip2Exception (_ message : String = "BZip2Exception")
-}
-
-infix operator ≡ : AssignmentPrecedence
-extension Int {
-  static func ≡ (left: inout Int, right: UInt8) {
-    left = Int(right)
+/**
+ */
+internal class PartitionResult {
+  
+  /**
+   */
+  let first : Int
+  
+  /**
+   */
+  let last : Int
+  
+  /**
+   * @param first
+   * @param last
+   */
+  public init (_ first : Int, _ last : Int) {
+    self.first = first;
+    self.last = last;
   }
+  
 }
 
-extension UInt8 {
-  static func ≡ (left: inout UInt8, right: Int) {
-    left = UInt8(right)
-  }
-}

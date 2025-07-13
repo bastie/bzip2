@@ -1,6 +1,6 @@
 # bzip2 
 
-This is the Java implementation of bzip2 from https://github.com/MateuszBartosiewicz/bzip2.
+This is the Java implementation of bzip2 from https://github.com/MateuszBartosiewicz/bzip2 
 
 ## License 
 

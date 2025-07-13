@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011 Matthew Francis
+ * Copyright (c) 2025 Sebastian Ritter
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +21,7 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
-import java.io.IOException;
-import java.io.InputStream;
-
+import JavApi
 
 /**
  * <p>An InputStream wrapper that decompresses BZip2 data</p>
@@ -45,28 +42,28 @@ import java.io.InputStream;
  *
  * <p>Instances of this class are not threadsafe.</p>
  */
-public class BZip2InputStream extends InputStream {
+open class BZip2InputStream : java.io.InputStream {
 
 	/**
 	 * The stream from which compressed BZip2 data is read and decoded
 	 */
-	private InputStream inputStream;
+  private var inputStream : java.io.InputStream?
 
 	/**
 	 * An InputStream wrapper that provides bit-level reads
 	 */
-	private BZip2BitInputStream bitInputStream;
+  private var bitInputStream : BZip2BitInputStream?
 
 	/**
 	 * If {@code true}, the caller is assumed to have read away the stream's leading "BZ" identifier
 	 * bytes
 	 */
-	private final boolean headerless;
+  private var headerless : Bool
 
 	/**
 	 * (@code true} if the end of the compressed stream has been reached, otherwise {@code false}
 	 */
-	private boolean streamComplete = false;
+	private var streamComplete = false;
 
 	/**
 	 * The declared block size of the stream (before final run-length decoding). The final block
@@ -75,35 +72,34 @@ public class BZip2InputStream extends InputStream {
 	 * therefore as a hint to the decompressor as to how much working space is sufficient to
 	 * decompress blocks in a given stream
 	 */
-	private int streamBlockSize;
+  private var streamBlockSize : Int = 0
 
 	/**
 	 * The merged CRC of all blocks decompressed so far
 	 */
-	private int streamCRC = 0;
+	private var streamCRC = 0;
 
 	/**
 	 * The decompressor for the current block
 	 */
-	private BZip2BlockDecompressor blockDecompressor = null;
+  private var blockDecompressor : BZip2BlockDecompressor? = nil
 
 
 	/* (non-Javadoc)
 	 * @see java.io.InputStream#read()
 	 */
-	@Override
-	public int read() throws IOException {
+  public override func read() throws -> Int {
 
-		int nextByte = -1;
-		if (this.blockDecompressor == null) {
-			initialiseStream();
+		var nextByte = -1;
+		if (self.blockDecompressor == nil) {
+      _ = try initialiseStream();
 		} else {
-			nextByte = this.blockDecompressor.read();
+      nextByte = self.blockDecompressor!.read();
 		}
 
 		if (nextByte == -1) {
-			if (initialiseNextBlock()) {
-				nextByte = this.blockDecompressor.read();
+      if (try initialiseNextBlock()) {
+        nextByte = self.blockDecompressor!.read();
 			}
 		}
 
@@ -111,47 +107,41 @@ public class BZip2InputStream extends InputStream {
 
 	}
 
-
 	/* (non-Javadoc)
 	 * @see java.io.InputStream#read(byte[], int, int)
 	 */
-	@Override
-	public int read (final byte[] destination, final int offset, final int length) throws IOException {
+  public override func read (_ destination : inout [UInt8], _ offset : Int, _ length : Int) throws -> Int {
 
-		int bytesRead = -1;
-		if (this.blockDecompressor == null) {
-			initialiseStream();
+		var bytesRead = -1;
+		if (self.blockDecompressor == nil) {
+      _ = try initialiseStream();
 		} else {
-			bytesRead = this.blockDecompressor.read (destination, offset, length);
+      bytesRead = self.blockDecompressor!.read (&destination, offset, length);
 		}
 
 		if (bytesRead == -1) {
-			if (initialiseNextBlock()) {
-				bytesRead = this.blockDecompressor.read (destination, offset, length);
+      if (try initialiseNextBlock()) {
+        bytesRead = self.blockDecompressor!.read (&destination, offset, length);
 			}
 		}
-
-		return bytesRead;
-
+		return bytesRead
 	}
 
 
 	/* (non-Javadoc)
 	 * @see java.io.InputStream#close()
 	 */
-	@Override
-	public void close() throws IOException {
+  public override func close() throws {
+    defer {
+      self.inputStream = nil;
+    }
 
-		if (this.bitInputStream != null) {
-			this.streamComplete = true;
-			this.blockDecompressor = null;
-			this.bitInputStream = null;
+		if (self.bitInputStream != nil) {
+			self.streamComplete = true;
+			self.blockDecompressor = nil;
+			self.bitInputStream = nil;
 
-			try {
-				this.inputStream.close();
-			} finally {
-				this.inputStream = null;
-			}
+      try  self.inputStream!.close();
 		}
 
 	}
@@ -161,40 +151,40 @@ public class BZip2InputStream extends InputStream {
 	 * Reads the stream header and checks that the data appears to be a valid BZip2 stream
 	 * @throws IOException if the stream header is not valid
 	 */
-	private void initialiseStream() throws IOException {
+	private func initialiseStream() throws -> Bool {
 
 		/* If the stream has been explicitly closed, throw an exception */
-		if (this.bitInputStream == null) {
-			throw new BZip2Exception ("Stream closed");
+		if (self.bitInputStream == nil) {
+      throw BZip2Exception.IOException("Stream closed");
 		}
 
 		/* If we're already at the end of the stream, do nothing */
-		if (this.streamComplete) {
-			return;
+		if (self.streamComplete) {
+			return false //return;
 		}
 
 		/* Read the stream header */
-		try {
-			int marker1 = this.headerless ? 0 : this.bitInputStream.readBits (16);
-			int marker2 = this.bitInputStream.readBits (8);
-			int blockSize = (this.bitInputStream.readBits (8) - '0');
+		do {
+      let marker1 : Int = self.headerless ? 0 : try self.bitInputStream!.readBits (16);
+      let marker2 : Int = try self.bitInputStream!.readBits (8);
+      let blockSize : Int = Int( (try self.bitInputStream!.readBits(8) - Int(UInt8(ascii: "0"))) )
 
 			if (
-					   (!this.headerless && (marker1 != BZip2Constants.STREAM_START_MARKER_1))
+					   (!self.headerless && (marker1 != BZip2Constants.STREAM_START_MARKER_1))
 					|| (marker2 != BZip2Constants.STREAM_START_MARKER_2)
 					|| (blockSize < 1) || (blockSize > 9))
 			{
-				throw new BZip2Exception ("Invalid BZip2 header");
+        throw BZip2Exception.IOException("Invalid BZip2 header");
 			}
 
-			this.streamBlockSize = blockSize * 100000;
-		} catch (IOException e) {
+			self.streamBlockSize = blockSize * 100000;
+    } catch {
 			// If the stream header was not valid, stop trying to read more data
-			this.streamComplete = true;
-			throw e;
+			self.streamComplete = true;
+			throw error
 		}
 
-
+    return true
 	}
 
 
@@ -208,46 +198,46 @@ public class BZip2InputStream extends InputStream {
 	 *                      not a valid block-header or end-of-file marker, or if the following
 	 *                      block could not be decoded
 	 */
-	private boolean initialiseNextBlock() throws IOException {
+	private func initialiseNextBlock() throws -> Bool {
 
 		/* If we're already at the end of the stream, do nothing */
-		if (this.streamComplete) {
+		if (self.streamComplete) {
 			return false;
 		}
 
 		/* If a block is complete, check the block CRC and integrate it into the stream CRC */
-		if (this.blockDecompressor != null) {
-			int blockCRC = this.blockDecompressor.checkCRC();
-			this.streamCRC = ((this.streamCRC << 1) | (this.streamCRC >>> 31)) ^ blockCRC;
+		if (self.blockDecompressor != nil) {
+      let blockCRC = try self.blockDecompressor!.checkCRC();
+			self.streamCRC = ((self.streamCRC << 1) | (self.streamCRC >>> 31)) ^ blockCRC;
 		}
 
 		/* Read block-header or end-of-stream marker */
-		final int marker1 = this.bitInputStream.readBits (24);
-		final int marker2 = this.bitInputStream.readBits (24);
+    let marker1 = try self.bitInputStream!.readBits (24);
+    let marker2 = try self.bitInputStream!.readBits (24);
 
 		if (marker1 == BZip2Constants.BLOCK_HEADER_MARKER_1 && marker2 == BZip2Constants.BLOCK_HEADER_MARKER_2) {
 			// Initialise a new block
-			try {
-				this.blockDecompressor = new BZip2BlockDecompressor (this.bitInputStream, this.streamBlockSize);
-			} catch (IOException e) {
+			do {
+        self.blockDecompressor = try BZip2BlockDecompressor (self.bitInputStream!, self.streamBlockSize);
+			} catch {
 				// If the block could not be decoded, stop trying to read more data
-				this.streamComplete = true;
-				throw e;
+				self.streamComplete = true;
+				throw error
 			}
 			return true;
 		} else if (marker1 == BZip2Constants.STREAM_END_MARKER_1 && marker2 == BZip2Constants.STREAM_END_MARKER_2) {
 			// Read and verify the end-of-stream CRC
-			this.streamComplete = true;
-			final int storedCombinedCRC = this.bitInputStream.readInteger();
-			if (storedCombinedCRC != this.streamCRC) {
-				throw new BZip2Exception ("BZip2 stream CRC error");
+			self.streamComplete = true;
+      let storedCombinedCRC = try self.bitInputStream!.readInteger();
+			if (storedCombinedCRC != self.streamCRC) {
+        throw BZip2Exception.IOException("BZip2 stream CRC error");
 			}
 			return false;
 		}
 
 		/* If what was read is not a valid block-header or end-of-stream marker, the stream is broken */
-		this.streamComplete = true;
-		throw new BZip2Exception ("BZip2 stream format error");
+		self.streamComplete = true;
+    throw BZip2Exception.IOException("BZip2 stream format error");
 
 	}
 
@@ -257,15 +247,11 @@ public class BZip2InputStream extends InputStream {
 	 * @param headerless If {@code true}, the caller is assumed to have read away the stream's
 	 *                   leading "BZ" identifier bytes
 	 */
-	public BZip2InputStream (final InputStream inputStream, final boolean headerless) {
+  public init (_ inputStream : java.io.InputStream, _ headerless : Bool) {
 
-		if (inputStream == null) {
-			throw new IllegalArgumentException ("Null input stream");
-		}
-
-		this.inputStream = inputStream;
-		this.bitInputStream = new BZip2BitInputStream (inputStream);
-		this.headerless = headerless;
+		self.inputStream = inputStream;
+		self.bitInputStream = BZip2BitInputStream (inputStream);
+		self.headerless = headerless;
 
 	}
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011 Matthew Francis
+ * Copyright (c) 2025 Sebastian Ritter
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,18 +21,15 @@
  * THE SOFTWARE.
  */
 
-package org.itadaki.bzip2;
-
-
 /**
  * A CRC32 calculator
  */
-public final class CRC32 {
+public class BZip2CRC32 {
 
 	/**
 	 * A static CRC lookup table
 	 */
-	private static final int crc32Lookup[] = {
+  private static let crc32Lookup : [Int] = [
 
 		0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
 		0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61, 0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd,
@@ -65,55 +63,44 @@ public final class CRC32 {
 		0xe3a1cbc1, 0xe760d676, 0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
 		0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662, 0x933eb0bb, 0x97ffad0c,
 		0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
-
-	};
-
+	]
 
 	/**
 	 * The current CRC
 	 */
-	private int crc = 0xffffffff;
-
+  private var crc : Int = 0xffffffff
 
 	/**
 	 * @return The current CRC
 	 */
-	public int getCRC() {
-
-		return ~this.crc;
-
+	public func getCRC() -> Int {
+		return ~self.crc;
 	}
-
 
 	/**
 	 * Update the CRC with a single byte
 	 * @param value The value to update the CRC with
 	 */
-	public void updateCRC (final int value) {
+  public func updateCRC (_ value : Int) {
+		let crc = self.crc;
 
-		final int crc = this.crc;
-
-		this.crc = (crc << 8) ^ crc32Lookup[((crc >> 24) ^ value) & 0xff];
-
+    self.crc = (crc << 8) ^ BZip2CRC32.crc32Lookup[((crc >> 24) ^ value) & 0xff];
 	}
-
 
 	/**
 	 * Update the CRC with a sequence of identical bytes
 	 * @param value The value to update the CRC with
 	 * @param count The number of bytes
 	 */
-	public void updateCRC (final int value, int count) {
+  public func updateCRC (_ value : Int, _ _count : Int) {
+    var count = _count
+		var crc = self.crc;
 
-		int crc = this.crc;
-
-		while (count-- > 0) {
-			crc = (crc << 8) ^ crc32Lookup[((crc >> 24) ^ value) & 0xff];
-		}
-
-		this.crc = crc;
-
+    while count > 0 {
+      count -= 1
+      crc = (crc << 8) ^ BZip2CRC32.crc32Lookup[Int((crc >> 24) ^ (value & 0xff))]
+    }
+    
+		self.crc = crc;
 	}
-
 }
-
